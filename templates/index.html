@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BigQuery Release Notes Dashboard</title>
+    <!-- Google Fonts: Outfit (headings) & Inter (body) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for modern icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Main Stylesheet -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="app-container">
+        <!-- HEADER -->
+        <header class="app-header">
+            <div class="header-logo">
+                <div class="bq-logo-icon">
+                    <i class="fa-solid fa-database animate-pulse"></i>
+                    <i class="fa-solid fa-bolt overlay-bolt"></i>
+                </div>
+                <div class="header-titles">
+                    <h1>BigQuery</h1>
+                    <span class="sub-logo">Release Hub</span>
+                </div>
+            </div>
+            
+            <div class="header-controls">
+                <span id="last-updated-time" class="last-updated">Last checked: Just now</span>
+                <button id="btn-refresh" class="btn btn-primary" title="Refresh Release Notes">
+                    <i class="fa-solid fa-arrows-rotate spinner-icon"></i>
+                    <span>Refresh Feed</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- MAIN LAYOUT -->
+        <div class="main-layout">
+            <!-- SIDEBAR: Search, Filter, Stats -->
+            <aside class="sidebar-panel">
+                <div class="sidebar-card filter-card">
+                    <h2><i class="fa-solid fa-sliders"></i> Filter & Search</h2>
+                    
+                    <div class="form-group search-group">
+                        <label for="search-input">Search Updates</label>
+                        <div class="search-input-wrapper">
+                            <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                            <input type="text" id="search-input" placeholder="Search keywords (e.g. Gemini, SQL, transfer)...">
+                            <button id="clear-search" class="clear-search-btn" style="display: none;"><i class="fa-solid fa-xmark"></i></button>
+                        </div>
+                    </div>
+
+                    <div class="form-group filter-group">
+                        <label>Category Filter</label>
+                        <div class="filter-pills" id="category-filters">
+                            <button class="filter-pill active" data-type="all">All Updates</button>
+                            <button class="filter-pill" data-type="Feature"><i class="fa-solid fa-circle-plus feature-dot"></i> Features</button>
+                            <button class="filter-pill" data-type="Announcement"><i class="fa-solid fa-bullhorn announce-dot"></i> Announcements</button>
+                            <button class="filter-pill" data-type="Issue"><i class="fa-solid fa-triangle-exclamation issue-dot"></i> Issues</button>
+                            <button class="filter-pill" data-type="Deprecated"><i class="fa-solid fa-ban deprecate-dot"></i> Deprecated</button>
+                            <button class="filter-pill" data-type="Fixed"><i class="fa-solid fa-circle-check fixed-dot"></i> Fixed</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-card stats-card">
+                    <h2><i class="fa-solid fa-chart-simple"></i> Feed Analytics</h2>
+                    <div class="stats-grid">
+                        <div class="stat-box">
+                            <span class="stat-num" id="stat-total">0</span>
+                            <span class="stat-label">Total Notes</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-num" id="stat-features">0</span>
+                            <span class="stat-label">Features</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-num" id="stat-issues">0</span>
+                            <span class="stat-label">Issues</span>
+                        </div>
+                        <div class="stat-box">
+                            <span class="stat-num" id="stat-announcements">0</span>
+                            <span class="stat-label">Announcements</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-card tips-card">
+                    <h2><i class="fa-solid fa-lightbulb"></i> Pro-Tip</h2>
+                    <p>Click on any release card in the timeline to view details and customize a tweet to share the update with your network!</p>
+                </div>
+            </aside>
+
+            <!-- CENTER PANEL: Timeline -->
+            <main class="timeline-container">
+                <div class="timeline-header">
+                    <h2><i class="fa-regular fa-calendar-days"></i> Release Timeline</h2>
+                    <div class="timeline-meta" id="timeline-summary">Showing 0 updates</div>
+                </div>
+                
+                <!-- Loading State -->
+                <div id="loader" class="timeline-loader" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>Fetching BigQuery release notes...</p>
+                </div>
+
+                <!-- Error State -->
+                <div id="error-container" class="timeline-error" style="display: none;">
+                    <i class="fa-solid fa-circle-exclamation error-icon"></i>
+                    <h3>Failed to load feed</h3>
+                    <p id="error-message">Unknown error occurred.</p>
+                    <button id="btn-retry" class="btn btn-secondary">Retry</button>
+                </div>
+
+                <!-- Empty State -->
+                <div id="empty-state" class="timeline-empty" style="display: none;">
+                    <i class="fa-solid fa-inbox-open empty-icon"></i>
+                    <h3>No matching updates</h3>
+                    <p>Try modifying your search query or filters.</p>
+                </div>
+
+                <!-- Timeline List -->
+                <div id="timeline-list" class="timeline-list">
+                    <!-- Dynamic updates loaded here -->
+                </div>
+            </main>
+
+            <!-- RIGHT PANEL: Tweet Composer and Details -->
+            <aside class="composer-panel" id="composer-panel">
+                <!-- Unselected Panel State -->
+                <div id="composer-empty-state" class="composer-empty">
+                    <div class="pulse-ring">
+                        <i class="fa-brands fa-x-twitter"></i>
+                    </div>
+                    <h3>Share updates on X</h3>
+                    <p>Select any release note card on the left to review details, format, and share it on X/Twitter.</p>
+                </div>
+
+                <!-- Selected State -->
+                <div id="composer-active-state" class="composer-active" style="display: none;">
+                    <div class="composer-header">
+                        <div class="composer-heading-meta">
+                            <span id="selected-type-badge" class="type-badge">Feature</span>
+                            <span id="selected-date" class="date-text">June 22, 2026</span>
+                        </div>
+                        <h3>Update Selected</h3>
+                    </div>
+
+                    <div class="composer-body">
+                        <!-- Raw release description -->
+                        <div class="update-preview-box">
+                            <div class="preview-scroll-container">
+                                <h4>Full Details</h4>
+                                <div id="selected-content" class="release-html-content">
+                                    <!-- Rendered HTML Content -->
+                                </div>
+                                <a id="selected-doc-link" href="#" target="_blank" class="doc-link">
+                                    View official docs <i class="fa-solid fa-arrow-up-right-from-square"></i>
+                                </a>
+                            </div>
+                        </div>
+
+                        <!-- Tweet composer section -->
+                        <div class="tweet-composer-section">
+                            <div class="section-title-row">
+                                <h4><i class="fa-brands fa-x-twitter"></i> Compose Post</h4>
+                                <button id="btn-reset-tweet" class="btn-text" title="Reset Tweet Text">
+                                    <i class="fa-solid fa-rotate-left"></i> Reset
+                                </button>
+                            </div>
+                            
+                            <textarea id="tweet-textarea" rows="5" maxlength="280" placeholder="Compose your tweet..."></textarea>
+                            
+                            <div class="composer-footer">
+                                <div class="char-counter-container">
+                                    <svg class="progress-ring" width="30" height="30">
+                                        <circle class="progress-ring__circle-bg" stroke="rgba(255,255,255,0.1)" stroke-width="3" fill="transparent" r="12" cx="15" cy="15"/>
+                                        <circle id="char-progress-circle" class="progress-ring__circle" stroke="#10b981" stroke-width="3" fill="transparent" r="12" cx="15" cy="15"/>
+                                    </svg>
+                                    <span id="char-count">280</span>
+                                </div>
+                                
+                                <div class="action-buttons">
+                                    <button id="btn-copy-tweet" class="btn btn-secondary btn-icon" title="Copy tweet content">
+                                        <i class="fa-regular fa-copy"></i>
+                                        <span>Copy</span>
+                                    </button>
+                                    <button id="btn-post-tweet" class="btn btn-twitter btn-icon" title="Open X/Twitter intent">
+                                        <i class="fa-brands fa-x-twitter"></i>
+                                        <span>Post on X</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Live Feed/Tweet Mock Preview (Wow factor!) -->
+                        <div class="mock-tweet-section">
+                            <h4>Live Preview on X</h4>
+                            <div class="mock-tweet-card">
+                                <div class="mock-tweet-header">
+                                    <div class="mock-avatar">
+                                        <i class="fa-solid fa-cloud-arrow-up"></i>
+                                    </div>
+                                    <div class="mock-user-info">
+                                        <span class="mock-display-name">Cloud Release Agent <i class="fa-solid fa-circle-check verification-badge"></i></span>
+                                        <span class="mock-username">@BQReleaseHub</span>
+                                    </div>
+                                    <span class="mock-more-btn"><i class="fa-solid fa-ellipsis"></i></span>
+                                </div>
+                                <div class="mock-tweet-body" id="mock-tweet-text">
+                                    <!-- Dynamic text preview -->
+                                </div>
+                                <div class="mock-tweet-meta">
+                                    <span class="mock-time">10:42 PM · Jun 23, 2026</span>
+                                    <span class="mock-views"><strong>12.5K</strong> Views</span>
+                                </div>
+                                <div class="mock-tweet-actions">
+                                    <span><i class="fa-regular fa-comment"></i> 12</span>
+                                    <span><i class="fa-solid fa-retweet"></i> 4</span>
+                                    <span><i class="fa-regular fa-heart"></i> 48</span>
+                                    <span><i class="fa-regular fa-bookmark"></i> 8</span>
+                                    <span><i class="fa-regular fa-share-from-square"></i></span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast-notification">
+        <i class="fa-solid fa-check-circle toast-icon"></i>
+        <span id="toast-text">Copied to clipboard!</span>
+    </div>
+
+    <!-- Main JavaScript Logic -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
